@@ -26,8 +26,10 @@ export const DaysProvider = ({ children }) => {
     try {
       const result = await fetchDays();
       setData(result);
+      return result;
     } catch (e) {
       setError(e.message);
+      throw e;
     } finally {
       setLoading(false);
     }

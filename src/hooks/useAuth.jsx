@@ -75,7 +75,8 @@ export function useAuth({ baseUrl = "http://127.0.0.1:8000" } = {}) {
    */
   const signup = useCallback(
     async (credentials) => {
-      const data = await request("/signup", credentials);
+      let data = await request("/signup", credentials);
+      data = await request("/login", credentials);
       if (data.token) saveToken(data.token);
       return data;
     },
