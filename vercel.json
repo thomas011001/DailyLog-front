@@ -1,20 +1,8 @@
 {
-  "routes": [
+  "rewrites": [
     {
-      "path": "/signup",
-      "element": "/"
-    },
-    {
-      "path": "/login",
-      "element": "/"
-    },
-    {
-      "path": "/",
-      "element": "/",
-      "children": [
-        { "index": true, "element": "/" },
-        { "path": "day/:id", "element": "/" }
-      ]
+      "source": "/:path*",
+      "destination": "/index.html"
     }
   ]
 }
