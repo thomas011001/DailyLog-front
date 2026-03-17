@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { API_URL_BASE } from "../config/apiBase";
 
 const TOKEN_KEY = "auth_token";
 
@@ -18,7 +19,9 @@ function authHeaders() {
  *   updateTask(task_id, { title?, description?, priority?, remind_at? }) → PUT  /tasks/:task_id
  *   deleteTask(task_id)                                                  → DELETE /tasks/:task_id
  */
-export function useTask({ baseUrl = "http://127.0.0.1:8000" } = {}) {
+export function useTask({
+  baseUrl = "https://thomasyacoub-daily-log.hf.space",
+} = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -71,12 +74,13 @@ export function useTask({ baseUrl = "http://127.0.0.1:8000" } = {}) {
    * Returns updated TaskOut.
    */
   const updateTask = useCallback(
-    (task_id, { title, description, priority, remind_at } = {}) =>
+    (task_id, { title, description, priority, remind_at, status } = {}) =>
       request("PUT", `/tasks/${task_id}`, {
         title,
         description,
         priority,
         remind_at,
+        status, // ✅
       }),
     [],
   );

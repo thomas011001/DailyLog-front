@@ -4,6 +4,7 @@ import { useDay } from "../hooks/useDay";
 import { useTask } from "../hooks/useTask";
 import { useNote } from "../hooks/useNote";
 import { useDays } from "../context/DaysContext";
+import { useDragSort } from "../hooks/useDragSort";
 import {
   CalendarDays,
   CheckSquare,
@@ -23,6 +24,7 @@ import {
   AlignLeft,
   Clock,
   MoreHorizontal,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -473,19 +475,55 @@ const TaskSettingsDialog = ({ task, onClose, onUpdated, onDeleted }) => {
 
 // ─── Task Item ────────────────────────────────────────────────────────────────
 
-const TaskItem = ({ task, onToggle, onOpenSettings }) => {
+const TaskItem = ({
+  task,
+  onToggle,
+  onOpenSettings,
+  dragHandlers,
+  index,
+  isDragging,
+}) => {
   const p = PRIORITIES[task.priority] ?? PRIORITIES[1];
-  const done = task.done ?? false;
+  const done = task.status === "finished";
+  const [justChecked, setJustChecked] = useState(false);
+
+  const handleToggle = () => {
+    if (!done) {
+      setJustChecked(true);
+      setTimeout(() => setJustChecked(false), 700);
+    }
+    onToggle(task);
+  };
 
   return (
     <div
-      className={`group flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0 transition-opacity ${done ? "opacity-60" : ""}`}
+      draggable
+      onDragStart={() => dragHandlers.onDragStart(index)}
+      onDragEnter={() => dragHandlers.onDragEnter(index)}
+      onDragEnd={dragHandlers.onDragEnd}
+      onDragOver={(e) => e.preventDefault()}
+      className="group flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0 cursor-default"
+      style={{
+        transition: "opacity 0.4s ease, transform 0.4s ease",
+        opacity: isDragging ? 0.4 : done ? 0.45 : 1,
+        transform: justChecked ? "translateX(6px)" : "translateX(0)",
+        background: isDragging ? "var(--accent)" : "transparent",
+      }}
     >
+      {/* Drag handle */}
+      <div className="mt-0.5 shrink-0 w-4 flex items-center justify-center opacity-0 group-hover:opacity-40 hover:!opacity-80 transition-opacity cursor-grab active:cursor-grabbing text-foreground">
+        <GripVertical size={13} />
+      </div>
       {/* Checkbox */}
       <button
-        onClick={() => onToggle(task)}
-        className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
+        onClick={handleToggle}
+        className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center
           ${done ? "border-primary bg-primary" : "border-border hover:border-primary/60"}`}
+        style={{
+          transition:
+            "transform 0.15s ease, background 0.25s ease, border-color 0.25s ease",
+          transform: justChecked ? "scale(1.25)" : "scale(1)",
+        }}
       >
         {done && (
           <CircleCheck
@@ -530,9 +568,31 @@ const TaskItem = ({ task, onToggle, onOpenSettings }) => {
 
 // ─── Note Item ────────────────────────────────────────────────────────────────
 
-const NoteItem = ({ note, onOpenSettings }) => (
-  <div className="group relative rounded-lg border border-border bg-muted/30 px-4 py-3 hover:border-primary/30 hover:bg-muted/50 transition-all">
-    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap pr-6">
+const NoteItem = ({
+  note,
+  onOpenSettings,
+  dragHandlers,
+  index,
+  isDragging,
+}) => (
+  <div
+    draggable
+    onDragStart={() => dragHandlers.onDragStart(index)}
+    onDragEnter={() => dragHandlers.onDragEnter(index)}
+    onDragEnd={dragHandlers.onDragEnd}
+    onDragOver={(e) => e.preventDefault()}
+    className="group relative rounded-lg border border-border bg-muted/30 px-4 py-3 hover:border-primary/30 hover:bg-muted/50 transition-all cursor-default"
+    style={{
+      opacity: isDragging ? 0.4 : 1,
+      background: isDragging ? "var(--accent)" : undefined,
+      transition: "opacity 0.2s ease",
+    }}
+  >
+    {/* Drag handle */}
+    <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 hover:!opacity-80 transition-opacity cursor-grab active:cursor-grabbing text-foreground">
+      <GripVertical size={13} />
+    </div>
+    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap pr-6 pl-3">
       {note.content}
     </p>
     <button
@@ -548,7 +608,7 @@ const NoteItem = ({ note, onOpenSettings }) => (
 
 const TaskProgress = ({ tasks = [] }) => {
   if (!tasks.length) return null;
-  const done = tasks.filter((t) => t.done).length;
+  const done = tasks.filter((t) => t.status === "finished").length;
   const pct = Math.round((done / tasks.length) * 100);
   return (
     <div className="flex items-center gap-3 mt-1">
@@ -905,12 +965,18 @@ export function DayPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getDay, loading, error } = useDay();
+  const { updateTask } = useTask();
   const [data, setData] = useState(null);
+  const [draggingTask, setDraggingTask] = useState(null);
+  const [draggingNote, setDraggingNote] = useState(null);
   const [showDaySettings, setShowDaySettings] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [taskSettings, setTaskSettings] = useState(null);
   const [showCreateNote, setShowCreateNote] = useState(false);
   const [noteSettings, setNoteSettings] = useState(null);
+
+  const taskDrag = useDragSort(data?.tasks ?? [], id, "tasks");
+  const noteDrag = useDragSort(data?.notes ?? [], id, "notes");
 
   useEffect(() => {
     if (!id) return;
@@ -921,42 +987,79 @@ export function DayPage() {
   }, [id]);
 
   // ── Task mutations ────────────────────────────────────────────────────────────
-  const addTask = (task) =>
+  const addTask = (task) => {
     setData((prev) => ({ ...prev, tasks: [...(prev.tasks ?? []), task] }));
+    taskDrag.addSorted(task);
+  };
 
-  const patchTask = (updated) =>
+  const patchTask = (updated) => {
     setData((prev) => ({
       ...prev,
       tasks: prev.tasks.map((t) =>
         String(t.id) === String(updated.id) ? { ...t, ...updated } : t,
       ),
     }));
+    taskDrag.patchSorted(updated);
+  };
 
-  const removeTask = (taskId) =>
+  const removeTask = (taskId) => {
     setData((prev) => ({
       ...prev,
       tasks: prev.tasks.filter((t) => String(t.id) !== String(taskId)),
     }));
+    taskDrag.removeSorted(taskId);
+  };
 
-  const toggleTask = (task) => patchTask({ ...task, done: !task.done });
+  const toggleTask = async (task) => {
+    const newStatus = task.status === "finished" ? "pending" : "finished";
+    // Optimistic update in place
+    taskDrag.patchSorted({ ...task, status: newStatus });
+    // Delay reorder until animation finishes
+    setTimeout(() => {
+      taskDrag.setSorted((prev) =>
+        [
+          ...prev.map((t) =>
+            String(t.id) === String(task.id) ? { ...t, status: newStatus } : t,
+          ),
+        ].sort(
+          (a, b) =>
+            (a.status === "finished" ? 1 : 0) -
+            (b.status === "finished" ? 1 : 0),
+        ),
+      );
+    }, 600);
+    try {
+      const updated = await updateTask(task.id, { status: newStatus });
+      taskDrag.patchSorted({ ...task, ...updated });
+    } catch {
+      taskDrag.patchSorted(task);
+      toast.error("Failed to update task.");
+    }
+  };
 
   // ── Note mutations ────────────────────────────────────────────────────────────
-  const addNote = (note) =>
+  const addNote = (note) => {
     setData((prev) => ({ ...prev, notes: [...(prev.notes ?? []), note] }));
+    noteDrag.addSorted(note);
+  };
 
-  const patchNote = (updated) =>
+  const patchNote = (updated) => {
     setData((prev) => ({
       ...prev,
       notes: prev.notes.map((n) =>
         String(n.id) === String(updated.id) ? { ...n, ...updated } : n,
       ),
     }));
+    noteDrag.patchSorted(updated);
+  };
 
-  const removeNote = (noteId) =>
+  const removeNote = (noteId) => {
     setData((prev) => ({
       ...prev,
       notes: prev.notes.filter((n) => String(n.id) !== String(noteId)),
     }));
+    noteDrag.removeSorted(noteId);
+  };
 
   if (loading) return <DayPageSkeleton />;
   if (error)
@@ -969,8 +1072,8 @@ export function DayPage() {
   if (!data) return <DayPageSkeleton />;
 
   const { dayNum, month, weekday, year, isToday } = formatDate(data.date);
-  const tasks = data.tasks ?? [];
-  const notes = data.notes ?? [];
+  const tasks = taskDrag.sorted;
+  const notes = noteDrag.sorted;
 
   return (
     <>
@@ -1040,7 +1143,8 @@ export function DayPage() {
                 </h2>
                 {tasks.length > 0 && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground tabular-nums">
-                    {tasks.filter((t) => t.done).length}/{tasks.length}
+                    {tasks.filter((t) => t.status === "finished").length}/
+                    {tasks.length}
                   </span>
                 )}
               </div>
@@ -1064,10 +1168,23 @@ export function DayPage() {
               />
             ) : (
               <div className="flex flex-col">
-                {tasks.map((t) => (
+                {tasks.map((t, i) => (
                   <TaskItem
                     key={t.id}
                     task={t}
+                    index={i}
+                    isDragging={draggingTask === t.id}
+                    dragHandlers={{
+                      onDragStart: (idx) => {
+                        setDraggingTask(t.id);
+                        taskDrag.dragHandlers.onDragStart(idx);
+                      },
+                      onDragEnter: taskDrag.dragHandlers.onDragEnter,
+                      onDragEnd: () => {
+                        setDraggingTask(null);
+                        taskDrag.dragHandlers.onDragEnd();
+                      },
+                    }}
                     onToggle={toggleTask}
                     onOpenSettings={setTaskSettings}
                   />
@@ -1111,10 +1228,23 @@ export function DayPage() {
               />
             ) : (
               <div className="flex flex-col gap-3">
-                {notes.map((n) => (
+                {notes.map((n, i) => (
                   <NoteItem
                     key={n.id}
                     note={n}
+                    index={i}
+                    isDragging={draggingNote === n.id}
+                    dragHandlers={{
+                      onDragStart: (idx) => {
+                        setDraggingNote(n.id);
+                        noteDrag.dragHandlers.onDragStart(idx);
+                      },
+                      onDragEnter: noteDrag.dragHandlers.onDragEnter,
+                      onDragEnd: () => {
+                        setDraggingNote(null);
+                        noteDrag.dragHandlers.onDragEnd();
+                      },
+                    }}
                     onOpenSettings={setNoteSettings}
                   />
                 ))}

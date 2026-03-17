@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { API_URL_BASE } from "../config/apiBase";
 
 const TOKEN_KEY = "auth_token";
 
@@ -18,7 +19,9 @@ function authHeaders() {
  *   updateNote(note_id, { content }) → PUT    /notes/:note_id
  *   deleteNote(note_id)              → DELETE /notes/:note_id
  */
-export function useNote({ baseUrl = "http://127.0.0.1:8000" } = {}) {
+export function useNote({
+  baseUrl = "https://thomasyacoub-daily-log.hf.space",
+} = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 

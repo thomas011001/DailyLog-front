@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { API_URL_BASE } from "../config/apiBase";
 
 const TOKEN_KEY = "auth_token";
 
@@ -11,7 +12,9 @@ const TOKEN_KEY = "auth_token";
  *   updateDay(id, { title?, new_date? }) → PUT    /day/:id
  *   deleteDay(id)                        → DELETE /day/:id
  */
-export function useDay({ baseUrl = "http://127.0.0.1:8000" } = {}) {
+export function useDay({
+  baseUrl = "https://thomasyacoub-daily-log.hf.space",
+} = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 

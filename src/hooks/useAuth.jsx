@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { API_URL_BASE } from "../config/apiBase";
 
 const TOKEN_KEY = "auth_token";
 
@@ -26,7 +27,9 @@ function decodeToken(token) {
  *   logout()             → clears the stored token
  *   me()                 → returns decoded token payload (no network call)
  */
-export function useAuth({ baseUrl = "http://127.0.0.1:8000" } = {}) {
+export function useAuth({
+  baseUrl = "https://thomasyacoub-daily-log.hf.space",
+} = {}) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
