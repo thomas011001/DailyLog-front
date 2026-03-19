@@ -3,9 +3,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 const storageKey = (dayId, type) => `drag_order_${type}_${dayId}`;
 
 const saveOrder = (dayId, type, ids) => {
-  try {
-    localStorage.setItem(storageKey(dayId, type), JSON.stringify(ids));
-  } catch {}
+  localStorage.setItem(storageKey(dayId, type), JSON.stringify(ids));
 };
 
 const loadOrder = (dayId, type) => {
@@ -34,14 +32,17 @@ export function useDragSort(items, dayId, type) {
 
   // Sync when items or dayId change
   useEffect(() => {
-    if (!items?.length) {
-      liveRef.current = [];
-      setSorted([]);
-      return;
-    }
-    const next = applyOrder(items, loadOrder(dayId, type));
-    liveRef.current = next;
-    setSorted(next);
+    const wrrapper = () => {
+      if (!items?.length) {
+        liveRef.current = [];
+        setSorted([]);
+        return;
+      }
+      const next = applyOrder(items, loadOrder(dayId, type));
+      liveRef.current = next;
+      setSorted(next);
+    };
+    wrrapper();
   }, [items, dayId, type]);
 
   const onDragStart = useCallback((index) => {
