@@ -5,7 +5,7 @@ import { useDay } from "../hooks/useDay";
 
 const DaysContext = createContext(null);
 
-const useDays = () => {
+export const useDays = () => {
   const ctx = useContext(DaysContext);
   if (!ctx) throw new Error("useDays must be used within <DaysProvider>");
   return ctx;
